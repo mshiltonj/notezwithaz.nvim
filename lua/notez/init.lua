@@ -36,11 +36,27 @@ function M.token_replacement(text, token, value)
   return text
 end
 
+
+-- we have a small number of date-base tokens
 function M.render_template(template_text, time_to_use)
-  template_text = M.token_replacement(template_text, "CURRENT_YEAR", os.date("%Y", time_to_use))
+  local tokens = {
+    CURRENT_YEAR = os.date("%Y", time_to_use),
+    CURRENT_MONTH = os.date("%m", time_to_use),
+    CURRENT_DAY = os.date("%d", time_to_use),
+    CURRENT_MINUTE = os.date("%M", time_to_use),
+    CURRENT_HOUR = os.date("%H", time_to_use),
+    CURRENT_SECOND = os.date("%S", time_to_use),
+    CURRENT_DAY_OF_WEEK = os.date("%A", time_to_use),
+    CURRENT_DAY_OF_WEEK_SHORT = os.date("%a", time_to_use),
+    CURRENT_MONTH_NAME = os.date("%B", time_to_use),
+    CURRENT_MONTH_NAME_SHORT = os.date("%b", time_to_use)
+  }
+
+  for token_key, token_value in pairs(tokens) do
+    template_text = M.token_replacement(template_text, token_key, token_value)
+  end
 
   return template_text
-
 end
 
 function M.template_path_with_file(template_type)
@@ -93,6 +109,11 @@ end
 
 
 
+
+-- list of commands
+-- ex:
+--  :Notez today
+
 local function Notez(opts)
   local cmd = opts.fargs[1]
 
@@ -109,13 +130,15 @@ local function Notez(opts)
     nextWeek = M.nextWeeklyNote,
     inbox = M.inboxNote,
     todo = M.todoNote,
-    config = M.config
+    config = M.config,
+    tokens = M.tokensTest
   }
 
   if command_table[cmd] then
     command_table[cmd]()
   end
 end
+
 
 function M.config()
   print("modpath: ", modpath)
@@ -164,6 +187,10 @@ function M.dayNote(the_time)
     new_note_text_lines = vim.split(new_note_text, "\n")
     vim.api.nvim_buf_set_lines(current_buffer, 0, -1,true, new_note_text_lines)
   end
+end
+
+function M.token_test()
+    local template_text = M.load_template_text("tokens/{{CURRENT_MONTH}}/{{CURRENT_DAY}}")
 end
 
 function M.todayNote()
