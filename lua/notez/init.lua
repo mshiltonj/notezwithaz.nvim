@@ -4,7 +4,6 @@
 -- Maintainer: mshiltonj@gmail.com
 
 
-
 -- Daily Note
 -- Weekly Note
 -- Meeting Note
@@ -91,7 +90,7 @@ end
 
 function M.load_template_text(template_type)
   local f = M.open_template_file(template_type)
-  
+
   if f == nil then
     return ""
   end
@@ -122,14 +121,22 @@ local function Notez(opts)
   end
 
   local command_table = {
-    today = M.todayNote,
-    yesterday = M.yesterdayNote,
-    tomorrow = M.tomorrowNote,
-    week = M.weeklyNote,
-    lastWeek = M.lastWeeklyNote,
-    nextWeek = M.nextWeeklyNote,
-    inbox = M.inboxNote,
-    todo = M.todoNote,
+    help = M.help,
+
+    today = M.today_note,
+    yesterday = M.yesterday_note,
+    tomorrow = M.tomorrow_note,
+
+    weekly_review = M.this_week_review_note,
+    last_weekly_review = M.last_week_review_note,
+    next_weekly_review = M.next_week_review_note,
+
+    weekly_plan = M.this_week_plan_note,
+    last_weekly_plan = M.last_week_plan_note,
+    next_weekly_plan = M.next_week_plan_note,
+
+    inbox = M.inbox_note,
+    todo = M.todo_note,
     config = M.config,
     tokens = M.tokensTest
   }
@@ -144,25 +151,19 @@ function M.config()
   print("modpath: ", modpath)
 end
 
-function M.ensureDatePath(path_part)
- local full_date_path = M.notez_home .. delim .. "daily" .. delim .. path_part
+function M.ensure_date_path(note_type, path_part)
+ local full_date_path = M.notez_home .. delim .. note_type .. delim .. path_part
  vim.fn.mkdir(full_date_path, 'p')
  return full_date_path
 end
 
-
-function M.dayNote(the_time)
-  local full_date_path = M.ensureDatePath(os.date("%Y/%m", the_time))
-
+function M.display_note(note_type, the_time)
+  local full_date_path = M.ensure_date_path(note_type, the_time)
   local day = os.date("%d", the_time)
   local full_file_path = full_date_path .. delim .. day .. ".md"
   vim.cmd.edit(full_file_path)
-
   local current_buffer = vim.api.nvim_get_current_buf()
-
-
   local buf_lines = vim.api.nvim_buf_get_lines(current_buffer, 0, -1, false)
-
 
   local is_empty_file = true
   if #buf_lines == 1 then
@@ -179,36 +180,122 @@ function M.dayNote(the_time)
     is_empty_file = false
   end
 
-
-
+  print("NOTE TYPE", note_type)
   if is_empty_file then
-    local template_text = M.load_template_text("daily")
+    local template_text = M.load_template_text(note_type)
     local new_note_text = M.render_template(template_text, the_time)
     new_note_text_lines = vim.split(new_note_text, "\n")
     vim.api.nvim_buf_set_lines(current_buffer, 0, -1,true, new_note_text_lines)
   end
 end
 
+
+
+function M.weekNote()
+  local full_week_path = M.ensure_week_path(os.date("%Y/%m", the_time))
+end
+
+function M.ensure_weekly_review_date_path(the_time)
+  return M.ensure_date_path("weekly_reivew", os.date("%Y/%m", the_time))
+end
+
+function M.ensure_daily_date_path(the_time)
+  return M.ensure_date_path("daily", os.date("%Y/%m", the_time))
+end
+
+function M.day_note(the_time)
+  M.display_note("daily", the_time)
+
+  -- local full_file_path = full_date_path .. delim .. day .. ".md"
+  -- vim.cmd.edit(full_file_path)
+  -- local current_buffer = vim.api.nvim_get_current_buf()
+  -- local buf_lines = vim.api.nvim_buf_get_lines(current_buffer, 0, -1, false)
+  --
+  -- local is_empty_file = true
+  -- if #buf_lines == 1 then
+  --   local only_line = ""
+  --   if buf_lines[0] == nil then
+  --     only_line =  buf_lines[1]
+  --   else
+  --     only_line =  buf_lines[0]
+  --   end
+  --   if string.len(only_line) > 0 then
+  --     is_empty_file = false
+  --   end
+  -- elseif #buf_lines > 1 then
+  --   is_empty_file = false
+  -- end
+  --
+  --
+  -- if is_empty_file then
+  --   local template_text = M.load_template_text("daily")
+  --   local new_note_text = M.render_template(template_text, the_time)
+  --   new_note_text_lines = vim.split(new_note_text, "\n")
+  --   vim.api.nvim_buf_set_lines(current_buffer, 0, -1,true, new_note_text_lines)
+  -- end
+end
+
 function M.token_test()
     local template_text = M.load_template_text("tokens/{{CURRENT_MONTH}}/{{CURRENT_DAY}}")
 end
 
-function M.todayNote()
+function M.this_week_plan_note()
   local the_time = get_time()
-  M.dayNote(the_time)
+  M.week_plan_note(the_time)
 end
 
-function M.yesterdayNote()
+
+function M.this_week_review_note()
+  local the_time = get_time()
+  M.week_review_note(the_time)
+end
+
+function M.last_week_review_note()
+  local the_time = get_time() - (86400 * 7)
+  M.week_review_note(the_time)
+end
+
+function M.next_week_review_note()
+  local the_time = get_time() + (86400 * 7)
+
+  M.week_review_note(the_time)
+end
+
+
+function M.today_note()
+  local the_time = get_time()
+  M.day_note(the_time)
+end
+
+function M.yesterday_note()
   local the_time = get_time() - 86400
-  M.dayNote(the_time)
+  M.day_note(the_time)
 end
 
-function M.tomorrowNote()
+function M.tomorrow_note()
   local the_time = get_time() + 86400
-  M.dayNote(the_time)
+  M.day_note(the_time)
 end
 
+function M.week_review_note(the_time)
+  M.display_note("weekly_review", the_time)
+end
 
+function M.week_plan_note(the_time)
+  M.display_note("weekly_plan", the_time)
+end
+
+function M.get_time_on_friday()
+  local the_time = get_time()
+  day_of_week = tonumber(os.date("%w", the_time))
+  print("DAY OF WEEK", day_of_week)
+  if day_of_week < 5 then
+    print("today is before friday")
+  elseif day_of_week > 5 then
+    print("today is after friday")
+  end
+  return the_time
+end
 
 
 function M.setup(opts)
