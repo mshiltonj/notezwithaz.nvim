@@ -105,10 +105,6 @@ function M.load_template_text(template_type)
 end
 
 -- print(os.date("%Y/%m/%d", theTime))
-
-
-
-
 -- list of commands
 -- ex:
 --  :Notez today
@@ -147,21 +143,27 @@ local function Notez(opts)
 end
 
 
+function M.todo_note()
+  local full_todo_path = M.notez_home .. delim .."TODO.md"
+  M.display_note("todo", full_todo_path)
+end
+
 function M.config()
   print("modpath: ", modpath)
 end
 
-function M.ensure_date_path(note_type, path_part)
+function M.ensure_date_path(note_type, the_time)
+ year = os.date("%Y", the_time)
+ month = os.date("%m", the_time)
+ path_part = year .. delim .. month
+
  local full_date_path = M.notez_home .. delim .. note_type .. delim .. path_part
  vim.fn.mkdir(full_date_path, 'p')
  return full_date_path
 end
 
-function M.display_note(note_type, the_time)
-  local full_date_path = M.ensure_date_path(note_type, the_time)
-  local day = os.date("%d", the_time)
-  local full_file_path = full_date_path .. delim .. day .. ".md"
-  vim.cmd.edit(full_file_path)
+function M.display_note(note_type, note_path, the_time)
+  vim.cmd.edit(note_path)
   local current_buffer = vim.api.nvim_get_current_buf()
   local buf_lines = vim.api.nvim_buf_get_lines(current_buffer, 0, -1, false)
 
@@ -180,7 +182,6 @@ function M.display_note(note_type, the_time)
     is_empty_file = false
   end
 
-  print("NOTE TYPE", note_type)
   if is_empty_file then
     local template_text = M.load_template_text(note_type)
     local new_note_text = M.render_template(template_text, the_time)
@@ -189,7 +190,12 @@ function M.display_note(note_type, the_time)
   end
 end
 
-
+function M.display_date_based_note(note_type, the_time)
+  local full_date_path = M.ensure_date_path(note_type, the_time)
+  local day = os.date("%d", the_time)
+  local full_file_path = full_date_path .. delim .. day .. ".md"
+  M.display_note(note_type, full_file_path, the_time)
+end
 
 function M.weekNote()
   local full_week_path = M.ensure_week_path(os.date("%Y/%m", the_time))
@@ -204,7 +210,7 @@ function M.ensure_daily_date_path(the_time)
 end
 
 function M.day_note(the_time)
-  M.display_note("daily", the_time)
+  M.display_date_based_note("daily", the_time)
 
   -- local full_file_path = full_date_path .. delim .. day .. ".md"
   -- vim.cmd.edit(full_file_path)
@@ -240,7 +246,7 @@ function M.token_test()
 end
 
 function M.this_week_plan_note()
-  local the_time = get_time()
+  local the_time = get_time() 
   M.week_plan_note(the_time)
 end
 
@@ -278,22 +284,18 @@ function M.tomorrow_note()
 end
 
 function M.week_review_note(the_time)
-  M.display_note("weekly_review", the_time)
+  monday_time = M.get_time_on_monday(the_time)
+  M.display_date_based_note("weekly_review", the_time)
 end
 
 function M.week_plan_note(the_time)
-  M.display_note("weekly_plan", the_time)
+  monday_time = M.get_time_on_monday(the_time)
+  M.display_date_based_note("weekly_plan", monday_time)
 end
 
-function M.get_time_on_friday()
-  local the_time = get_time()
+function M.get_time_on_monday(the_time)
   day_of_week = tonumber(os.date("%w", the_time))
-  print("DAY OF WEEK", day_of_week)
-  if day_of_week < 5 then
-    print("today is before friday")
-  elseif day_of_week > 5 then
-    print("today is after friday")
-  end
+  the_time = the_time - ( (6 - (6 - day_of_week )) * 86400)
   return the_time
 end
 
