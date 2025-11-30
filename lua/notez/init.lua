@@ -35,7 +35,6 @@ function M.token_replacement(text, token, value)
   return text
 end
 
-
 -- we have a small number of date-base tokens
 function M.render_template(template_text, time_to_use)
   local tokens = {
@@ -79,7 +78,7 @@ function M.open_template_file(template_type)
   end
 
   if f == nil then
-    -- no template found! WAT
+    -- no template found!
     print("ERROR: " .. template_type .. " template could not be loaded")
 
     return nil
@@ -109,12 +108,18 @@ end
 -- ex:
 --  :Notez today
 
-local function Notez(opts)
-  local cmd = opts.fargs[1]
+local static_note_types = { "project", "area", "resource", "list" }
 
-  if cmd == nil then
-    cmd = "today"
+local function Notez(opts)
+  local notez_cmd = opts.fargs[1]
+
+  if notez_cmd == nil then
+    notez_cmd = "today"
   end
+
+  local notez_cmd_ary = vim.split(notez_cmd, " ")
+  local cmd = notez_cmd_ary[1]
+  local notez_target = notez_cmd_ary[2]
 
   local command_table = {
     help = M.help,
@@ -131,21 +136,75 @@ local function Notez(opts)
     last_weekly_plan = M.last_week_plan_note,
     next_weekly_plan = M.next_week_plan_note,
 
+    meeting = M.meeting_note,
+
     inbox = M.inbox_note,
     todo = M.todo_note,
+
+    project = M.project_note,
+    area = M.area_note,
+    resource = M.resource_note,
+    list = M.list_note,
+
     config = M.config,
     tokens = M.tokensTest
   }
 
   if command_table[cmd] then
-    command_table[cmd]()
+    if static_note_types[cmd] ~= nil then
+      if notez_target == nil then
+        print(cmd .. ' requires a target. Ex: ":Notes project project_name"')
+        return
+      else
+        command_table[cmd](notez_target)
+      end
+    else
+      if cmd == "meeting" then
+        command_table[cmd](notez_target)
+      else
+        command_table[cmd]()
+      end
+    end
   end
 end
 
+function M.meeting_note(meeting)
+  if meeting == nil then
+    meeting = os.date("%H-%M")
+  end
+  local note_path = M.ensure_date_path("meeting", get_time())
+  local full_meeting_note_path = note_path .. delim .. "meeting-" .. meeting .. ".md"
+  M.display_note("meeting", full_meeting_note_path)
+end
+
+function M.project_note(project)
+  local full_project_note_path = M.notez_home .. delim .. "projects" .. delim .. project .. ".md"
+  M.display_note("project", full_project_note_path)
+end
+
+function M.area_note(area)
+  local full_area_note_path = M.notez_home .. delim .. "areas" .. delim .. area .. ".md"
+  M.display_note("areas", full_area_note_path)
+end
+
+function M.resource_note(resource)
+  local full_resource_note_path = M.notez_home .. delim .. "resources" .. delim .. resource .. ".md"
+  M.display_note("resources", full_resource_note_path)
+end
+
+function M.list_note(list)
+  local full_list_note_path = M.notez_home .. delim .. "lists" .. delim .. list .. ".md"
+  M.display_note("list", full_list_note_path)
+end
 
 function M.todo_note()
   local full_todo_path = M.notez_home .. delim .."TODO.md"
   M.display_note("todo", full_todo_path)
+end
+
+function M.inbox_note()
+  local full_todo_path = M.notez_home .. delim .."INBOX.md"
+  M.display_note("inbox", full_todo_path)
 end
 
 function M.config()
@@ -153,9 +212,9 @@ function M.config()
 end
 
 function M.ensure_date_path(note_type, the_time)
- year = os.date("%Y", the_time)
- month = os.date("%m", the_time)
- path_part = year .. delim .. month
+ local year = os.date("%Y", the_time)
+ local month = os.date("%m", the_time)
+ local path_part = year .. delim .. month
 
  local full_date_path = M.notez_home .. delim .. note_type .. delim .. path_part
  vim.fn.mkdir(full_date_path, 'p')
@@ -205,10 +264,6 @@ function M.ensure_weekly_review_date_path(the_time)
   return M.ensure_date_path("weekly_reivew", os.date("%Y/%m", the_time))
 end
 
-function M.ensure_daily_date_path(the_time)
-  return M.ensure_date_path("daily", os.date("%Y/%m", the_time))
-end
-
 function M.day_note(the_time)
   M.display_date_based_note("daily", the_time)
 
@@ -246,7 +301,7 @@ function M.token_test()
 end
 
 function M.this_week_plan_note()
-  local the_time = get_time() 
+  local the_time = get_time()
   M.week_plan_note(the_time)
 end
 
