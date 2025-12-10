@@ -36,7 +36,7 @@ function M.token_replacement(text, token, value)
 end
 
 -- we have a small number of date-base tokens
-function M.render_template(template_text, time_to_use)
+function M.render_template(template_text, time_to_use, title)
   local tokens = {
     CURRENT_YEAR = os.date("%Y", time_to_use),
     CURRENT_MONTH = os.date("%m", time_to_use),
@@ -47,7 +47,8 @@ function M.render_template(template_text, time_to_use)
     CURRENT_DAY_OF_WEEK = os.date("%A", time_to_use),
     CURRENT_DAY_OF_WEEK_SHORT = os.date("%a", time_to_use),
     CURRENT_MONTH_NAME = os.date("%B", time_to_use),
-    CURRENT_MONTH_NAME_SHORT = os.date("%b", time_to_use)
+    CURRENT_MONTH_NAME_SHORT = os.date("%b", time_to_use),
+    TITLE = title
   }
 
   for token_key, token_value in pairs(tokens) do
@@ -119,7 +120,6 @@ local function Notez(opts)
 
   local notez_cmd_ary = vim.split(notez_cmd, " ")
   local cmd = notez_cmd_ary[1]
-  local notez_target = notez_cmd_ary[2]
 
   local command_table = {
     help = M.help,
@@ -150,6 +150,20 @@ local function Notez(opts)
     tokens = M.tokensTest
   }
 
+  local rest_of_command = ""
+
+  local idx = 0
+
+  for key, value in pairs(notez_cmd_ary) do
+    if idx ~= 0 then
+      if rest_of_command ~= "" then
+        rest_of_command = rest_of_command .. " "
+      end
+      rest_of_command = rest_of_command .. value
+    end
+    idx = idx + 1
+  end
+
   if command_table[cmd] then
     if static_note_types[cmd] ~= nil then
       if notez_target == nil then
@@ -160,7 +174,7 @@ local function Notez(opts)
       end
     else
       if cmd == "meeting" then
-        command_table[cmd](notez_target)
+        command_table[cmd](rest_of_command)
       else
         command_table[cmd]()
       end
@@ -172,9 +186,17 @@ function M.meeting_note(meeting)
   if meeting == nil then
     meeting = os.date("%H-%M")
   end
-  local note_path = M.ensure_date_path("meeting", get_time())
-  local full_meeting_note_path = note_path .. delim .. "meeting-" .. meeting .. ".md"
-  M.display_note("meeting", full_meeting_note_path)
+
+  -- TODO: Unicode characters?
+  local fs_meeting = string.gsub(meeting, "(%s+)", "-")
+  fs_meeting = string.gsub(fs_meeting, "[^A-z0-9-]", "")
+  fs_meeting = string.lower(fs_meeting)
+
+  local the_time = get_time()
+  local note_path = M.ensure_date_path("meeting", the_time)
+  local full_meeting_note_path = note_path .. delim .. "meeting-" .. fs_meeting .. ".md"
+
+  M.display_note("meeting", full_meeting_note_path, the_time, meeting)
 end
 
 function M.project_note(project)
@@ -221,7 +243,7 @@ function M.ensure_date_path(note_type, the_time)
  return full_date_path
 end
 
-function M.display_note(note_type, note_path, the_time)
+function M.display_note(note_type, note_path, the_time, title)
   vim.cmd.edit(note_path)
   local current_buffer = vim.api.nvim_get_current_buf()
   local buf_lines = vim.api.nvim_buf_get_lines(current_buffer, 0, -1, false)
@@ -243,7 +265,7 @@ function M.display_note(note_type, note_path, the_time)
 
   if is_empty_file then
     local template_text = M.load_template_text(note_type)
-    local new_note_text = M.render_template(template_text, the_time)
+    local new_note_text = M.render_template(template_text, the_time, title)
     new_note_text_lines = vim.split(new_note_text, "\n")
     vim.api.nvim_buf_set_lines(current_buffer, 0, -1,true, new_note_text_lines)
   end
